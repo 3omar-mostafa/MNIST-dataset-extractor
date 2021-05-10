@@ -21,4 +21,5 @@ arguments:
   filename       File name to extract
   output_folder  Folder to extract files in
 ```
-
+# Download
+Already extracted images can be downloaded at [releases](https://github.com/3omar-mostafa/MNIST-dataset-extractor/releases/tag/dataset)
