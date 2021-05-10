@@ -1,0 +1,83 @@
+name: python
+
+on: 
+  push:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python 3.6
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.6
+
+    - name: Add conda to system path
+      run: echo $CONDA/bin >> $GITHUB_PATH
+      
+    - name: Install dependencies
+      run: conda env update --file requirements.yml --name base
+
+    - name: Install some packages
+      run: sudo apt install wget gzip p7zip p7zip-full
+
+#     - name: Download Dataset
+#       run: |
+#         # Make wget more stable by increasing timeout and retries
+#         alias wget='wget --retry-connrefused --tries=50 --read-timeout=20 --timeout=60 '
+
+#         wget 'http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
+#         wget 'http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz'
+#         wget 'http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz'
+#         wget 'http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz'
+        
+        
+    - name: Download Dataset - Backup way
+      run: |
+        # Make wget more stable by increasing timeout and retries
+        alias wget='wget --retry-connrefused --tries=50 --read-timeout=20 --timeout=60 '
+        
+        # The website is unstable, therefore download from wayback machine
+        wget 'https://web.archive.org/web/20210304042348/http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz'
+        wget 'https://web.archive.org/web/20201031192846/http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz'
+        wget 'https://web.archive.org/web/20210124213855/http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz'
+        wget 'https://web.archive.org/web/20210124213857/http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz'
+        
+    - name: Extract Dataset
+      run: |
+        gunzip -v train-images-idx3-ubyte.gz
+        gunzip -v train-labels-idx1-ubyte.gz
+        gunzip -v t10k-images-idx3-ubyte.gz
+        gunzip -v t10k-labels-idx1-ubyte.gz
+        
+        python main.py train-images-idx3-ubyte ./training_dataset
+        python main.py train-labels-idx1-ubyte ./training_dataset
+        python main.py t10k-images-idx3-ubyte ./test_dataset
+        python main.py t10k-labels-idx1-ubyte ./test_dataset
+        
+        
+    - name: Compress Dataset
+      run: |
+        zip -r training_dataset.zip training_dataset
+        7z a training_dataset.7z ./training_dataset
+        zip -r test_dataset.zip test_dataset
+        7z a test_dataset.7z test_dataset
+        
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: "dataset"
+        name: "Dataset extracted images"
+        body: "7z files contain same data as zip files but more compressed"
+        files: |
+          ./*.7z
+          ./*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
